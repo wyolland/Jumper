@@ -12,20 +12,8 @@ from time import strftime, localtime
 import numpy as np
 # for version detection
 import imutils
-# frame_buffer data structure
-if imutils.is_cv2():
-    from Queue import *
-else:
-    from queue import *
 # simplifies writting command line interface
 import argparse
-
-user = 'HAAS'
-
-if user == 'HAAS':
-  caffe.set_mode_cpu()
-else:
-  caffe.set_mode_gpu()
 
 # default database file
 EXAMPLE_FILE = 'classification_data.csv'
@@ -47,11 +35,25 @@ parser = argparse.ArgumentParser()
 
 # adds an optional tags to the video capture
 parser.add_argument("-v", "--video",
-	help="path to the (optional) video file")
+	help="Path to the (optional) video file")
 
 # adds an optional tag to turn on verbose debug stream
 parser.add_argument("--debug", dest='DEBUG', action='store_true', default=False,
 	help="Execute with a verbose debug stream to command line")
+
+parser.add_argument("--haastyle", dest='HAAS', action='store_true', default=False,
+    help="If you\'re Jarrod Haas, run it with this flag.")
+
+# parse_args() parses the arguments by inspecting the command-line, converting each object to the appropriate type and invoking the appropriate action. vars() returns the dictionary attribute for the objects
+args = vars(parser.parse_args())
+
+# frame_buffer data structure
+if args.get("HAAS"):
+    from Queue import *
+    caffe.set_mode_cpu()
+else:
+    from queue import *
+    caffe.set_mode_gpu()
 
 def ResetVariables():
 
@@ -72,8 +74,6 @@ def WriteMessage(message, frame):
     0.35,
     color,
     1)
-
-
 
 
 def TransformImage(img, img_width=IMAGE_WIDTH, img_height=IMAGE_HEIGHT):
@@ -121,6 +121,7 @@ def ProcessQueue(queue):
         print("Parsing queue of size: ", queue.qsize())
     for count, triple in enumerate(iter(queue.get, None)):
 
+        print("Parsed images: ", count)
         ID = triple[0]
         time = triple[1]
         img = triple[2]
@@ -177,7 +178,7 @@ Setting up the camera and network with supplied settings
 #Read mean image
 mean_blob = caffe_pb2.BlobProto()
 
-if user == 'HAAS':
+if args.get("HAAS"):
     path = '/Users/JRod/Desktop/Jumper/alexnet_transfer/mean_256.binaryproto'
 else:
     path = '/home/wyolland/Documents/cmpt-414-project/caffe/Jumper/fashion-data/input/mean_256.binaryproto'
@@ -187,9 +188,6 @@ with open(path, 'rb') as f:
     mean_blob.ParseFromString(f.read())
 mean_array = np.asarray(mean_blob.data, dtype=np.float32).reshape((mean_blob.channels, mean_blob.height, mean_blob.width))
 
-# parse_args() parses the arguments by inspecting the command-line, converting each object to the appropriate type and invoking the appropriate action. vars() returns the dictionary attribute for the objects
-args = vars(parser.parse_args())
-
 # if a video path was not supplied, grab the reference to the 0th webcam
 if not args.get("video", False):
 	camera = cv2.VideoCapture(0)
@@ -197,17 +195,22 @@ if not args.get("video", False):
 else:
 	camera = cv2.VideoCapture(args["video"])
 
-if imutils.is_cv2():
+if args.get("HAAS"):
   ForegroundBackground = cv2.BackgroundSubtractorMOG2(50, 16, 0)
-
 else:
   ForegroundBackground = cv2.createBackgroundSubtractorMOG2(history=50, detectShadows=False)
 
 #Read model architecture and trained model's weights
 
+if args.get("HAAS"):
+    deploy_path = '/Users/JRod/Desktop/Jumper/alexnet_transfer/deploy.prototxt'
+    model_path = '/Users/JRod/Desktop/Jumper/alexnet_transfer/alexnet_transfer_iter_13000.caffemodel'
+else:
+    deploy_path = '/home/wyolland/Documents/cmpt-414-project/caffe/Jumper/snapshots/deploy.prototxt'
+    model_path = '/home/wyolland/Documents/cmpt-414-project/caffe/Jumper/snapshots/alexnet_transfer_iter_13000.caffemodel'
 
-net = caffe.Net('/Users/JRod/Desktop/Jumper/alexnet_transfer/deploy.prototxt',
-                '/Users/JRod/Desktop/Jumper/alexnet_transfer/alexnet_transfer_iter_13000.caffemodel',
+net = caffe.Net(deploy_path,
+                model_path,
                 caffe.TEST)
 
 frame_buffer = Queue(maxsize=0)
@@ -217,6 +220,17 @@ frame_count = 0
 on_screen = False
 message_count = 0
 message = ''
+
+_, test_frame = camera.read()
+
+# place a window in the top left of the screen
+cv2.namedWindow('frame')
+cv2.moveWindow('frame', 0, 0)
+
+# if debug create a mask window just under the frame
+if args.get("DEBUG"):
+    cv2.namedWindow('mask')
+    cv2.moveWindow('mask', 0, test_frame.shape[1])
 
 while True:
 
@@ -309,7 +323,7 @@ while True:
         message = "Please wait while we process process the detected objects"
         WriteMessage(message, flipframe)
         cv2.imshow('frame',flipframe)
-        
+
         ProcessQueue(frame_buffer)
         ResetVariables()
 
