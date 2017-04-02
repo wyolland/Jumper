@@ -126,6 +126,7 @@ def ProcessQueue(queue):
         time = triple[1]
         img = triple[2]
         img = TransformImage(img, img_width=IMAGE_WIDTH, img_height=IMAGE_HEIGHT)
+        cv2.imshow('newFrame', img)
         img = img.transpose((2,0,1)) - mean_array
         tensor_img = CropImage_10(img)
         probabilities = MakePrediction(tensor_img)
@@ -304,6 +305,7 @@ while True:
 
         #write current message to screen
         if message_count > 0:
+            WriteMessage(message, fgmask)
             WriteMessage(message, flipframe)
 
         cv2.imshow('mask',fgmask)
