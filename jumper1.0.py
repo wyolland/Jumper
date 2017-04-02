@@ -63,7 +63,7 @@ def ResetVariables():
 
 def WriteMessage(message, frame):
 
-    location = (frame.shape[1]//2 - frame.shape[1]//4, 10)
+    location = (10, frame.shape[0]-10)
     color = (255, 255, 255)
     cv2.putText(frame,
     message,
@@ -72,6 +72,8 @@ def WriteMessage(message, frame):
     0.35,
     color,
     1)
+
+
 
 
 def TransformImage(img, img_width=IMAGE_WIDTH, img_height=IMAGE_HEIGHT):
@@ -213,6 +215,8 @@ ID = -1
 fps = 0
 frame_count = 0
 on_screen = False
+message_count = 0
+message = ''
 
 while True:
 
@@ -279,27 +283,42 @@ while True:
     else:
         on_screen = False
 
+
     if args.get("DEBUG"):
         # show the fps on the mask
         cv2.putText(fgmask, "fps: {}".format(fps), (fgmask.shape[1] - 80, fgmask.shape[0] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.35, (255, 255, 255), 1)
+
+        #write current message to screen
+        if message_count > 0:
+            WriteMessage(message, flipframe)
+
         cv2.imshow('mask',fgmask)
+        cv2.imshow('frame',flipframe)
+
     else:
         cv2.imshow('frame', flipframe)
 
     key = cv2.waitKey(1) & 0xFF
 
+    # keep track of whether message should be displayed
+    if message_count > 0:
+      message_count -= 1
     frame_count += 1
 
     if key == ord('p'):
         message = "Please wait while we process process the detected objects"
-        if args.get("DEBUG"):
-            WriteMessage(message, fgmask)
-            cv2.imshow('mask',fgmask)
-        else:
-            WriteMessage(message, flipframe)
-            cv2.imshow('frame', flipframe)
+        WriteMessage(message, flipframe)
+        cv2.imshow('frame',flipframe)
+        
         ProcessQueue(frame_buffer)
         ResetVariables()
+
+    if key == ord("c"):
+        message = "Process queue reset"
+        message_count = 30
+
+        ResetVariables()
+
 
     if key == ord("q"):
         break
