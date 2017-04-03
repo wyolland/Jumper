@@ -44,9 +44,11 @@ parser.add_argument("--debug", dest='DEBUG', action='store_true', default=False,
 parser.add_argument("--haastyle", dest='HAAS', action='store_true', default=False,
     help="If you\'re Jarrod Haas, run it with this flag.")
 
+parser.add_argument("-o", '--output', default=EXAMPLE_FILE,
+	help="path to an example output file so as to copy the formatting")
+
 # parse_args() parses the arguments by inspecting the command-line, converting each object to the appropriate type and invoking the appropriate action. vars() returns the dictionary attribute for the objects
 args = vars(parser.parse_args())
-
 # frame_buffer data structure
 if args.get("HAAS"):
     from Queue import *
@@ -57,6 +59,7 @@ else:
 
 def ResetVariables():
 
+    global frame_buffer, ID, fps, frame_count, on_screen
     frame_buffer = Queue(maxsize=0)
     ID = -1
     fps = 0
@@ -75,6 +78,16 @@ def WriteMessage(message, frame):
     color,
     1)
 
+def WriteToCSV(ID, time, topN):
+
+    toWrite = ""
+    toWrite += str(ID) + ", "
+    toWrite += time + ", "
+    for classification in topN[:-1]:
+        toWrite += classification + ","
+    toWrite += topN[-1]
+    with open(args.get('output'), "a") as f:
+        f.write(toWrite)
 
 def TransformImage(img, img_width=IMAGE_WIDTH, img_height=IMAGE_HEIGHT):
 
@@ -125,7 +138,7 @@ def ProcessQueue(queue):
         ID = triple[0]
         time = triple[1]
         img = triple[2]
-        img = TransformImage(img, img_width=IMAGE_WIDTH, img_height=IMAGE_HEIGHT)
+        img = TransformImage(img)
         cv2.imshow('newFrame', img)
         img = img.transpose((2,0,1)) - mean_array
         tensor_img = CropImage_10(img)
@@ -166,6 +179,9 @@ def ProcessQueue(queue):
         top_five_classes = []
         for num in top_five:
             top_five_classes.append(NUM_TO_CLASS[num])
+        WriteToCSV(ID,
+                   prediction_list[0][0] +  " - " + prediction_list[-1][0],
+                   top_five_classes )
         print("Top five classes (nums): ", top_five)
         print("Top five classes (words): ", top_five_classes)
 
@@ -183,7 +199,6 @@ if args.get("HAAS"):
     path = '/Users/JRod/Desktop/Jumper/alexnet_transfer/mean_256.binaryproto'
 else:
     path = '/home/wyolland/Documents/cmpt-414-project/caffe/Jumper/fashion-data/input/mean_256.binaryproto'
-
 
 with open(path, 'rb') as f:
     mean_blob.ParseFromString(f.read())
@@ -222,7 +237,10 @@ on_screen = False
 message_count = 0
 message = ''
 
-_, test_frame = camera.read()
+grabbed = False
+while not grabbed:
+    grabbed, test_frame = camera.read()
+    print(grabbed)
 
 # place a window in the top left of the screen
 cv2.namedWindow('frame')
@@ -332,7 +350,6 @@ while True:
     if key == ord("c"):
         message = "Process queue reset"
         message_count = 30
-
         ResetVariables()
 
 
