@@ -78,7 +78,7 @@ def WriteMessage(message, frame):
     color,
     1)
 
-def WriteToCSV(ID, time, topN):
+def WriteToCSV(ID, time, topN, maxO, maxLabel):
 
     toWrite = ""
     toWrite += str(ID) + ", "
@@ -86,6 +86,11 @@ def WriteToCSV(ID, time, topN):
     for classification in topN[:-1]:
         toWrite += classification + ","
     toWrite += topN[-1]
+    toWrite += ', '
+    toWrite += str(maxO)
+    toWrite += ', '
+    toWrite += str(maxLabel)
+    toWrite += '\n'
     with open(args.get('output'), "a") as f:
         f.write(toWrite)
 
@@ -181,7 +186,7 @@ def ProcessQueue(queue):
             top_five_classes.append(NUM_TO_CLASS[num])
         WriteToCSV(ID,
                    prediction_list[0][0] +  " - " + prediction_list[-1][0],
-                   top_five_classes )
+                   top_five_classes, max_prob, NUM_TO_CLASS[int(max_IDX)])
         print("Top five classes (nums): ", top_five)
         print("Top five classes (words): ", top_five_classes)
 
